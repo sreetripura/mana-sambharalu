@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import requests
 
 # ---------- MODE & SETTINGS ----------
-DEMO_MODE: bool = True                           # True = demo data; False = real API
+DEMO_MODE = False                           # True = demo data; False = real API
 API_BASE: str = "https://api.corpus.swecha.org"  # set your deployment if different
 REQ_TIMEOUT: int = 25
 RETRY_BACKOFF: float = 0.7
