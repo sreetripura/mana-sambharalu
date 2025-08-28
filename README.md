@@ -1,59 +1,60 @@
-# మన సంబరాలు • Mana Sambharalu
+# మన సంభరాలు · Mana Sambharalu
 
-A community-driven treasury of Indian festivals built with **Streamlit** (frontend) and the **Swecha Corpus API** (backend).  
-Users can explore public records and, after login, contribute new text/media with metadata (language, rights, location).  
-The app supports a safe **DEMO mode** (offline) and a **LIVE mode** that persists to the real API.  
-This repository contains a minimal client, chunked upload helpers, and a clean UI for Explore/Contribute.
+A community-driven Streamlit app to **explore** and **contribute** Indian festival records using the **Swecha Corpus API**.
 
----
+<p align="center">
+  <img alt="Home" src="assets/Screenshot%202025-08-28%20125720.png" width="800"><br/>
+  <em>Home</em>
+</p>
 
-## Screenshots
+## ✨ Features
+- 🔎 Explore corpus records (title, language, location, images)
+- ➕ Contribute new records (metadata + optional media)
+- 🔐 Login (demo mode supported)
+- 🌗 Clean, responsive UI (Streamlit)
 
-**Home**
-![Home](assets/Screenshot%202025-08-28%20125720.png)
+<p align="center">
+  <img alt="Explore" src="assets/Screenshot%202025-08-28%20125608.png" width="800"><br/>
+  <em>Explore</em>
+</p>
 
-**Explore**
-![Explore](assets/Screenshot%202025-08-28%20125608.png)
-
-**Contribute**
-![Contribute](assets/Screenshot%202025-08-28%20125652.png)
-
----
-
-## Features
-
-- Streamlit multi-page app: **Home**, **Explore**, **Contribute**.
-- Login + token storage; optional OTP signup stubs (graceful fallbacks if endpoints differ).
-- Create festival records (title/description/category/language/rights/location).
-- **Chunked media upload** (images/audio/video/pdf), then server-side finalize.
-- Defensive client: tries canonical endpoints first and compatible fallbacks if the API evolves.
+<p align="center">
+  <img alt="Contribute" src="assets/Screenshot%202025-08-28%20125652.png" width="800"><br/>
+  <em>Contribute</em>
+</p>
 
 ---
 
-## Architecture (Client–Server + OSaaS)
-
-- **Client (this repo):** Streamlit UI + a thin Python client (`utils/api_client.py`).
-- **Server (Swecha Corpus API):** Auth, categories, records, chunked object storage (**OSaaS**).
-- **Key endpoints used**
-  - `auth/login`, `auth/me` *(fallbacks: `login`, `me`)*
-  - `categories`
-  - `records`, `records/search`
-  - `records/upload/chunk`, `records/upload/finalize`
-  - Signup helpers: `auth/send-otp`, `auth/signup/verify`, `auth/resend-otp` *(optional; used if available)*
-
----
-
-## Repository Layout
-
+## 🧭 Project Layout
 mana-sambharalu/
-├─ assets/ # PNG screenshots used in README/UI
-├─ config/
-│ └─ settings.py # DEMO_MODE & API_BASE
+├─ Home.py # Landing + login
 ├─ pages/
-│ ├─ 1_Explore.py # Search & list records
-│ └─ 2_Contribute.py # Create record + optional uploads
+│ ├─ 1_Explore.py # Browse/search records
+│ └─ 2_Contribute.py # Create records + upload chunks
 ├─ utils/
-│ └─ api_client.py # Swecha API client (auth, records, upload)
-├─ Home.py # Landing page (links + login/logout)
+│ └─ api_client.py # Swecha Corpus API wrapper
+├─ config/
+│ └─ settings.py # DEMO_MODE, API_BASE
+├─ assets/ # Images used in README/UI
 ├─ requirements.txt
-├─ pyproject.toml 
+└─ pyproject.toml
+
+
+
+## 🔧 Local Setup
+```bash
+# clone
+git clone https://code.swecha.org/SreeTripura/mana-sambharalu.git
+cd mana-sambharalu
+
+# create & activate venv (Windows PowerShell)
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+
+# install deps
+pip install -r requirements.txt
+
+# run the app
+streamlit run Home.py
+
+
