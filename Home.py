@@ -48,7 +48,8 @@ with col2:
             pwd = st.text_input("Password", type="password", placeholder=("demo123" if DEMO_MODE else "••••••••"))
             ok = st.form_submit_button("Login", use_container_width=True)
         if ok:
-            res = client.login_for_access_token(phone, pwd)
+            res = client.login(phone, pwd)
+
             if res and "access_token" in res:
                 st.session_state.access_token = res["access_token"]
                 client.set_auth_token(res["access_token"])
