@@ -8,22 +8,18 @@ from utils.ui import set_blurred_bg
 st.set_page_config(page_title="Explore · Mana Sambharalu", layout="wide")
 set_blurred_bg()  # blurred goddess background
 
-st.markdown(
-    """
-    <style>
-    /* Uniform thumbnails for ALL images on this page */
-    [data-testid="stImage"] img {
-        width: 100% !important;         /* fill the card width */
-        aspect-ratio: 16/9 !important;  /* <- change to 1/1 for square tiles */
-        height: auto !important;
-        object-fit: cover !important;   /* crop to fit, no distortion */
-        border-radius: 14px;
-        box-shadow: 0 8px 22px rgba(0,0,0,.25);
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+st.markdown("""
+<style>
+[data-testid="stImage"] img {
+    width: 100% !important;
+    height: 260px !important;
+    object-fit: cover !important;
+    border-radius: 16px;
+    box-shadow: 0 8px 22px rgba(0,0,0,.25);
+}
+</style>
+""", unsafe_allow_html=True)
+
 
 st.title("🔎 Explore Telangana\nFestivals")
 
