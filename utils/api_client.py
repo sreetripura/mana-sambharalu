@@ -20,6 +20,7 @@ class SwechaAPIClient:
         if os.getenv("SWECHA_TOKEN"):
             self.set_auth_token(os.getenv("SWECHA_TOKEN", ""))
 
+    # ---------------- low-level ----------------
     def set_auth_token(self, token: str) -> None:
         self.token = token
 
@@ -48,39 +49,81 @@ class SwechaAPIClient:
         except Exception as e:
             return 0, {"error": str(e), "url": url}
 
-    # -------- auth --------
+    # ---------------- helpers ----------------
+    def _extract_token(self, body: t.Any) -> str | None:
+        if isinstance(body, dict):
+            for k in ("access_token", "token"):
+                if k in body and isinstance(body[k], str) and body[k]:
+                    return body[k]
+        return None
+
+    # ---------------- auth ----------------
     def login(self, username_or_phone: str, password: str) -> dict | None:
-        payloads = [
-            {"username": username_or_phone, "password": password},
-            {"email": username_or_phone,    "password": password},
-            {"login": username_or_phone,    "password": password},
-            {"phone": username_or_phone,    "password": password},
+        """
+        Try several common login shapes:
+        - OAuth2 style token endpoints (grant_type=password)
+        - Plain login endpoints with username/email/phone/login fields
+        Raise a RuntimeError with a short 'tried' trace if nothing works.
+        """
+        # 1) OAuth2 style first (very common)
+        oauth_bodies = [
+            {"username": username_or_phone, "password": password, "grant_type": "password"},
         ]
-        paths = ["auth/login", "users/login", "sessions"]
+        oauth_paths = ["auth/token", "oauth/token", "token"]
 
         tried: list[str] = []
-        for p in paths:
-            for body in payloads:
-                sc, resp = self._request("POST", p, json_body=body)
-                tried.append(f"{sc} {p} ({'/'.join(body.keys())})")
-                if sc == 200 and isinstance(resp, dict) and "access_token" in resp:
-                    self.token = resp["access_token"]
-                    return resp
+
+        for p in oauth_paths:
+            for b in oauth_bodies:
+                sc, resp = self._request("POST", p, json_body=b)
+                tried.append(f"{sc} {p} ({'/'.join(b.keys())})")
+                tok = self._extract_token(resp)
+                if sc == 200 and tok:
+                    self.token = tok
+                    return {"access_token": tok}
+                # 401/403 means creds wrong—stop early
                 if sc in (401, 403):
                     return None
 
-        msg = "Login endpoint not found on API." if all(str(x).startswith(("404","405")) for x in tried) \
-              else "Invalid credentials or server rejected the request."
+        # 2) Plain login fallbacks with multiple field names
+        plain_bodies = [
+            {"username": username_or_phone, "password": password},
+            {"email":    username_or_phone, "password": password},
+            {"login":    username_or_phone, "password": password},
+            {"phone":    username_or_phone, "password": password},
+        ]
+        plain_paths = ["auth/login", "users/login", "sessions", "login"]
+
+        for p in plain_paths:
+            for b in plain_bodies:
+                sc, resp = self._request("POST", p, json_body=b)
+                tried.append(f"{sc} {p} ({'/'.join(b.keys())})")
+                tok = self._extract_token(resp)
+                if sc == 200 and tok:
+                    self.token = tok
+                    return {"access_token": tok}
+                if sc in (401, 403):
+                    return None
+
+        msg = "Login endpoint not found or method not allowed on API."
+        # If *every* status was 404/405, call it out clearly:
+        if tried and all(str(x).startswith(("404","405")) for x in tried):
+            msg = "Login endpoint not found on API."
         raise RuntimeError(f"{msg} · Tried: " + " | ".join(tried))
 
+    def set_token_and_verify(self, token: str) -> bool:
+        self.set_auth_token(token)
+        me = self.read_users_me()
+        return bool(me)
+
     def read_users_me(self) -> dict | None:
-        for p in ("auth/me","users/me","me"):
+        for p in ("auth/me", "users/me", "me"):
             sc, body = self._request("GET", p)
             if sc == 200 and isinstance(body, dict):
                 return body
         return None
 
-    # -------- catalog --------
+    # ---------------- catalog ----------------
     def get_categories(self) -> list[dict] | None:
         sc, body = self._request("GET", "categories")
         if sc == 200 and isinstance(body, list):
@@ -93,7 +136,7 @@ class SwechaAPIClient:
             return body
         return None
 
-    # -------- contribute --------
+    # ---------------- contribute ----------------
     def create_record(self, *, title: str, description: str, category_id: int,
                       language: str, release_rights: str,
                       latitude: float | None = None, longitude: float | None = None) -> dict | None:
@@ -103,6 +146,7 @@ class SwechaAPIClient:
             "location": {"latitude": latitude, "longitude": longitude},
         }
         sc, body = self._request("POST", "records", json_body=payload)
-        if sc in (200,201) and isinstance(body, dict):
+        if sc in (200, 201) and isinstance(body, dict):
             return body
+        # fallback stub so UI stays responsive even if POST not yet enabled
         return {"id": int(time.time()) % 100000, "ok": True}

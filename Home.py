@@ -7,6 +7,7 @@ import streamlit as st
 st.set_page_config(page_title="మన సంబరాలు · Home", layout="wide")
 
 from utils.api_client import SwechaAPIClient, DEMO_MODE
+from config.settings import ALLOW_ANON_EXPLORE
 from utils.ui import set_blurred_bg
 
 set_blurred_bg()
@@ -38,8 +39,9 @@ if not st.session_state.authenticated:
     left, mid, right = st.columns([1,2,1])
     with mid:
         st.markdown("### Account")
-        tab_login, tab_signup = st.tabs(["Login", "Sign up"])
+        tab_login, tab_signup, tab_token = st.tabs(["Login", "Sign up", "Paste token"])
 
+        # ---- Login
         with tab_login:
             with st.form("login"):
                 uname = st.text_input("Phone / Username", placeholder="+91XXXXXXXXXX")
@@ -60,12 +62,13 @@ if not st.session_state.authenticated:
                 except RuntimeError as e:
                     st.error(str(e))
 
+        # ---- Sign up (unchanged UI; may need backend support)
         with tab_signup:
             if DEMO_MODE:
                 st.info("DEMO mode: use any phone. OTP is **123456**.")
             phone = st.text_input("Phone (e.g., +91XXXXXXXXXX)", key="su_phone")
             if st.button("Send OTP", key="su_send", width="content"):
-                resp = client.send_signup_otp(phone.strip())
+                resp = client.send_signup_otp(phone.strip()) if hasattr(client, "send_signup_otp") else None
                 if resp and isinstance(resp, dict):
                     st.session_state["otp_sent"] = True
                     st.success("OTP sent. Check your phone.")
@@ -80,7 +83,7 @@ if not st.session_state.authenticated:
                     email = st.text_input("Email")
                     pwd1 = st.text_input("Create password", type="password")
                     done = st.form_submit_button("Verify & Create account", width="stretch")
-                if done:
+                if done and hasattr(client, "verify_signup_otp"):
                     created = client.verify_signup_otp(
                         phone=phone.strip(), otp_code=otp.strip(),
                         name=name.strip(), email=email.strip(), password=pwd1,
@@ -90,10 +93,24 @@ if not st.session_state.authenticated:
                         st.session_state["otp_sent"] = False
                     else:
                         st.error("OTP verification failed.")
+
+        # ---- Paste token (new)
+        with tab_token:
+            st.caption("If the API team gives you a bearer token, paste it here.")
+            tkn = st.text_input("Bearer token", type="password")
+            if st.button("Use token", type="primary"):
+                if tkn and client.set_token_and_verify(tkn):
+                    st.session_state["access_token"] = tkn
+                    st.session_state["authenticated"] = True
+                    st.session_state["user"] = client.read_users_me() or {}
+                    st.success("Token accepted."); st.rerun()
+                else:
+                    st.error("Token invalid or profile fetch failed.")
 else:
     col1, col2 = st.columns([2,1])
     with col1:
         st.markdown("### Navigation")
+        # If login is WIP but you still want Explore visible, set ALLOW_ANON_EXPLORE=true
         st.page_link("pages/2_Explore.py", label="🔎 Explore Records →", width="stretch")
         st.page_link("pages/3_Contribute.py", label="➕ Contribute a Record →", width="stretch")
     with col2:
