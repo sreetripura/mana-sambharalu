@@ -49,53 +49,38 @@ class SwechaAPIClient:
         except Exception as e:
             return 0, {"error": str(e), "url": url}
 
-    # ---------------- helpers ----------------
     def _extract_token(self, body: t.Any) -> str | None:
         if isinstance(body, dict):
             for k in ("access_token", "token"):
-                if k in body and isinstance(body[k], str) and body[k]:
+                if isinstance(body.get(k), str) and body.get(k):
                     return body[k]
         return None
 
     # ---------------- auth ----------------
     def login(self, username_or_phone: str, password: str) -> dict | None:
-        """
-        Try several common login shapes:
-        - OAuth2 style token endpoints (grant_type=password)
-        - Plain login endpoints with username/email/phone/login fields
-        Raise a RuntimeError with a short 'tried' trace if nothing works.
-        """
-        # 1) OAuth2 style first (very common)
-        oauth_bodies = [
-            {"username": username_or_phone, "password": password, "grant_type": "password"},
-        ]
-        oauth_paths = ["auth/token", "oauth/token", "token"]
-
+        """Try common login shapes; return {"access_token": "..."} or None; raise if endpoints missing."""
+        # OAuth2-like
         tried: list[str] = []
+        for p in ("auth/token", "oauth/token", "token"):
+            b = {"username": username_or_phone, "password": password, "grant_type": "password"}
+            sc, resp = self._request("POST", p, json_body=b)
+            tried.append(f"{sc} {p} ({'/'.join(b.keys())})")
+            tok = self._extract_token(resp)
+            if sc == 200 and tok:
+                self.token = tok
+                return {"access_token": tok}
+            if sc in (401, 403):
+                return None
 
-        for p in oauth_paths:
-            for b in oauth_bodies:
-                sc, resp = self._request("POST", p, json_body=b)
-                tried.append(f"{sc} {p} ({'/'.join(b.keys())})")
-                tok = self._extract_token(resp)
-                if sc == 200 and tok:
-                    self.token = tok
-                    return {"access_token": tok}
-                # 401/403 means creds wrong—stop early
-                if sc in (401, 403):
-                    return None
-
-        # 2) Plain login fallbacks with multiple field names
-        plain_bodies = [
+        # Plain login fallbacks
+        bodies = [
             {"username": username_or_phone, "password": password},
             {"email":    username_or_phone, "password": password},
             {"login":    username_or_phone, "password": password},
             {"phone":    username_or_phone, "password": password},
         ]
-        plain_paths = ["auth/login", "users/login", "sessions", "login"]
-
-        for p in plain_paths:
-            for b in plain_bodies:
+        for p in ("auth/login", "users/login", "sessions", "login"):
+            for b in bodies:
                 sc, resp = self._request("POST", p, json_body=b)
                 tried.append(f"{sc} {p} ({'/'.join(b.keys())})")
                 tok = self._extract_token(resp)
@@ -105,16 +90,14 @@ class SwechaAPIClient:
                 if sc in (401, 403):
                     return None
 
-        msg = "Login endpoint not found or method not allowed on API."
-        # If *every* status was 404/405, call it out clearly:
-        if tried and all(str(x).startswith(("404","405")) for x in tried):
-            msg = "Login endpoint not found on API."
+        msg = "Login endpoint not found on API."
+        if not all(str(x).startswith(("404","405")) for x in tried):
+            msg = "Invalid credentials or server rejected the request."
         raise RuntimeError(f"{msg} · Tried: " + " | ".join(tried))
 
     def set_token_and_verify(self, token: str) -> bool:
         self.set_auth_token(token)
-        me = self.read_users_me()
-        return bool(me)
+        return bool(self.read_users_me())
 
     def read_users_me(self) -> dict | None:
         for p in ("auth/me", "users/me", "me"):
@@ -148,5 +131,5 @@ class SwechaAPIClient:
         sc, body = self._request("POST", "records", json_body=payload)
         if sc in (200, 201) and isinstance(body, dict):
             return body
-        # fallback stub so UI stays responsive even if POST not yet enabled
+        # Fallback so the UI stays usable even if POST is not enabled server-side
         return {"id": int(time.time()) % 100000, "ok": True}

@@ -1,4 +1,5 @@
 ﻿from __future__ import annotations
+import os
 import streamlit as st
 from utils.api_client import SwechaAPIClient, DEMO_MODE
 from utils.ui import set_blurred_bg, require_auth
@@ -6,8 +7,8 @@ from utils.ui import set_blurred_bg, require_auth
 st.set_page_config(page_title="Contribute · Mana Sambharalu", layout="wide")
 set_blurred_bg()
 
-# Require login (as requested)
-if not require_auth():
+# Gate on LIVE unless you deliberately allow anon (we keep it strict here)
+if not require_auth() and not DEMO_MODE:
     st.stop()
 
 st.title("➕ Contribute a Record")
@@ -45,12 +46,7 @@ with st.form("contribute_form", enter_to_submit=False):
         cat_name = st.selectbox("Category", options=cat_names, index=0)
         rights = st.selectbox(
             "Release rights",
-            options=[
-                "CC BY-SA 4.0",
-                "CC BY 4.0",
-                "Public Domain (CC0)",
-                "All rights reserved",
-            ],
+            options=["CC BY-SA 4.0","CC BY 4.0","Public Domain (CC0)","All rights reserved"],
             index=0,
         )
         lat = st.number_input("Latitude (optional)", step=0.000001, format="%.6f")
@@ -59,22 +55,19 @@ with st.form("contribute_form", enter_to_submit=False):
     st.divider()
     uploads = st.file_uploader(
         "Photos / media (optional — media upload is demo-only for now on this UI)",
-        type=["jpg", "jpeg", "png", "gif", "webp", "mp4", "mov", "wav", "mp3"],
+        type=["jpg","jpeg","png","gif","webp","mp4","mov","wav","mp3"],
         accept_multiple_files=True,
         help="You can attach images or short clips. In DEMO mode we just preview them.",
     )
 
-    submitted = st.form_submit_button("Submit record", width="content")
+    submitted = st.form_submit_button("Submit record", width="stretch")
 
 if submitted:
     problems = []
-    if not title.strip():
-        problems.append("Title is required.")
-    if not description.strip():
-        problems.append("Description is required.")
+    if not title.strip(): problems.append("Title is required.")
+    if not description.strip(): problems.append("Description is required.")
     if problems:
-        st.error(" ".join(problems))
-        st.stop()
+        st.error(" ".join(problems)); st.stop()
 
     with st.spinner("Creating record…"):
         rec = client.create_record(
@@ -88,21 +81,23 @@ if submitted:
         )
 
     if not rec:
-        st.error("Could not create the record. Please try again.")
-        st.stop()
+        st.error("Could not create the record. Please try again."); st.stop()
 
     rec_id = rec.get("id") if isinstance(rec, dict) else None
     st.success(f"Record created successfully! {('(ID: ' + str(rec_id) + ')') if rec_id else ''}")
 
     if uploads:
-        st.info("Demo mode-style preview (no real upload here).")
-        cols = st.columns(3)
-        for i, f in enumerate(uploads):
-            with cols[i % 3]:
-                if f.type.startswith("image/"):
-                    st.image(f.read(), caption=f.name, width="stretch")
-                else:
-                    st.caption(f"Attached: {f.name} ({f.type})")
+        if DEMO_MODE:
+            st.info("Demo mode: showing previews (no real upload).")
+            cols = st.columns(3)
+            for i, f in enumerate(uploads):
+                with cols[i % 3]:
+                    if f.type.startswith("image/"):
+                        st.image(f.read(), caption=f.name, width="stretch")
+                    else:
+                        st.caption(f"Attached: {f.name} ({f.type})")
+        else:
+            st.warning("Server-side media upload API varies; this UI currently saves metadata only.")
 
     st.toast("Thanks for your contribution!", icon="🎉")
     st.balloons()
