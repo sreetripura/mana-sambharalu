@@ -1,32 +1,36 @@
 ﻿from __future__ import annotations
-import os, time, typing as t
-import requests
+import os, typing as t, requests
 
-try:
-    from config.settings import DEMO_MODE, API_BASE
-except Exception:
-    DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() in {"1","true","yes"}
-    API_BASE  = os.getenv("API_BASE", "https://api.corpus.swecha.org").rstrip("/")
-
+# ----- settings -----
+API_BASE = os.getenv("API_BASE", "https://api.corpus.swecha.org").rstrip("/")
+DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() in {"1", "true", "yes"}
 TIMEOUT = 25
 
 def _join(*parts: str) -> str:
     return "/".join(p.strip("/") for p in parts if p is not None)
 
 class SwechaAPIClient:
+    """
+    Minimal client used by the Streamlit app.
+
+    - DEMO_MODE: fake login with password 'demo123'
+    - LIVE:     prefers token-paste or OTP login if backend supports it
+    """
+
     def __init__(self) -> None:
         self.base = API_BASE
         self.token: t.Optional[str] = None
-        if os.getenv("SWECHA_TOKEN"):
-            self.set_auth_token(os.getenv("SWECHA_TOKEN", ""))
+        tok = os.getenv("SWECHA_TOKEN")
+        if tok:
+            self.set_auth_token(tok)
 
-    # ---------------- low-level ----------------
+    # -------- low-level --------
     def set_auth_token(self, token: str) -> None:
         self.token = token
 
-    def _headers(self, content_json: bool = True) -> dict:
+    def _headers(self, *, json_ct: bool = True) -> dict:
         h = {"User-Agent": "mana-sambharalu/1.0"}
-        if content_json:
+        if json_ct:
             h["Content-Type"] = "application/json"
         if self.token:
             h["Authorization"] = f"Bearer {self.token}"
@@ -34,102 +38,138 @@ class SwechaAPIClient:
 
     def _request(self, method: str, path: str, *,
                  json_body: t.Any | None = None,
+                 form_body: dict | None = None,
                  params: dict | None = None,
-                 headers_json: bool = True) -> tuple[int, dict | list | str | None]:
+                 json_ct: bool = True) -> tuple[int, t.Any]:
         url = _join(self.base, path)
         try:
-            r = requests.request(
-                method.upper(), url,
-                headers=self._headers(content_json=headers_json),
-                json=json_body, params=params, timeout=TIMEOUT
-            )
-            ct = r.headers.get("content-type","")
+            if form_body is not None:
+                headers = self._headers(json_ct=False)
+                r = requests.request(method.upper(), url,
+                                     headers=headers, data=form_body, params=params, timeout=TIMEOUT)
+            else:
+                headers = self._headers(json_ct=json_ct)
+                r = requests.request(method.upper(), url,
+                                     headers=headers, json=json_body, params=params, timeout=TIMEOUT)
+            ct = r.headers.get("content-type", "")
             body = r.json() if "application/json" in ct else r.text
             return r.status_code, body
         except Exception as e:
             return 0, {"error": str(e), "url": url}
 
-    def _extract_token(self, body: t.Any) -> str | None:
-        if isinstance(body, dict):
-            for k in ("access_token", "token"):
-                if isinstance(body.get(k), str) and body.get(k):
-                    return body[k]
-        return None
-
-    # ---------------- auth ----------------
+    # -------- auth flows --------
     def login(self, username_or_phone: str, password: str) -> dict | None:
-        """Try common login shapes; return {"access_token": "..."} or None; raise if endpoints missing."""
-        # OAuth2-like
+        """
+        Primary login. In DEMO_MODE accepts password 'demo123'.
+        On LIVE, tries common token-creation endpoints; if none work, raises.
+        """
+        if DEMO_MODE:
+            if password == "demo123":
+                self.token = "DEMO_TOKEN"
+                return {"access_token": self.token}
+            return None
+
+        # 1) OAuth2 password-style (many backends)
+        form_payload = {"username": username_or_phone, "password": password, "grant_type": "password"}
+        token_paths = ["auth/token", "oauth/token", "token", "api/token", "auth/token/"]
         tried: list[str] = []
-        for p in ("auth/token", "oauth/token", "token"):
-            b = {"username": username_or_phone, "password": password, "grant_type": "password"}
-            sc, resp = self._request("POST", p, json_body=b)
-            tried.append(f"{sc} {p} ({'/'.join(b.keys())})")
-            tok = self._extract_token(resp)
-            if sc == 200 and tok:
-                self.token = tok
-                return {"access_token": tok}
-            if sc in (401, 403):
-                return None
+        for p in token_paths:
+            for as_form in (True, False):
+                if as_form:
+                    sc, resp = self._request("POST", p, form_body=form_payload)
+                    tried.append(f"{sc} {p} (form username/password/grant_type)")
+                else:
+                    sc, resp = self._request("POST", p, json_body=form_payload)
+                    tried.append(f"{sc} {p} (username/password/grant_type)")
+                if sc == 200 and isinstance(resp, dict) and "access_token" in resp:
+                    self.token = resp["access_token"]; return resp
+                if sc in (401, 403):  # creds rejected; stop early
+                    raise RuntimeError("Invalid credentials.")
 
-        # Plain login fallbacks
-        bodies = [
+        # 2) JWT / token login variants
+        jwt_paths = ["auth/jwt/create", "auth/token/login", "auth/login",
+                     "users/login", "sessions", "login"]
+        json_payloads = [
             {"username": username_or_phone, "password": password},
-            {"email":    username_or_phone, "password": password},
-            {"login":    username_or_phone, "password": password},
-            {"phone":    username_or_phone, "password": password},
+            {"email": username_or_phone, "password": password},
+            {"login": username_or_phone, "password": password},
+            {"phone": username_or_phone, "password": password},
         ]
-        for p in ("auth/login", "users/login", "sessions", "login"):
-            for b in bodies:
-                sc, resp = self._request("POST", p, json_body=b)
-                tried.append(f"{sc} {p} ({'/'.join(b.keys())})")
-                tok = self._extract_token(resp)
-                if sc == 200 and tok:
-                    self.token = tok
-                    return {"access_token": tok}
-                if sc in (401, 403):
-                    return None
+        for p in jwt_paths:
+            for body in json_payloads:
+                for as_form in (False, True):
+                    if as_form:
+                        sc, resp = self._request("POST", p, form_body=body)
+                        tried.append(f"{sc} {p} (form {'/'.join(body.keys())})")
+                    else:
+                        sc, resp = self._request("POST", p, json_body=body)
+                        tried.append(f"{sc} {p} ({'/'.join(body.keys())})")
+                    if sc == 200 and isinstance(resp, dict) and "access_token" in resp:
+                        self.token = resp["access_token"]; return resp
+                    if sc in (401, 403):
+                        raise RuntimeError("Invalid credentials.")
 
-        msg = "Login endpoint not found on API."
-        if not all(str(x).startswith(("404","405")) for x in tried):
-            msg = "Invalid credentials or server rejected the request."
-        raise RuntimeError(f"{msg} · Tried: " + " | ".join(tried))
+        # If we get here: backend doesn’t expose password login
+        raise RuntimeError("Login endpoint not found on API. · Tried: " + " | ".join(tried))
 
     def set_token_and_verify(self, token: str) -> bool:
         self.set_auth_token(token)
-        return bool(self.read_users_me())
+        me = self.read_users_me()
+        return bool(me)
+
+    def send_login_otp(self, phone: str) -> dict | None:
+        """Try common OTP-login send endpoints."""
+        paths = ["auth/otp/send", "auth/send-otp", "otp/send", "users/otp/send"]
+        payload = {"phone": phone}
+        for p in paths:
+            sc, resp = self._request("POST", p, json_body=payload)
+            if sc in (200, 201) and isinstance(resp, dict):
+                return resp
+        return None
+
+    def verify_login_otp(self, phone: str, code: str) -> dict | None:
+        """Verify OTP for login; expect access_token on success."""
+        paths = ["auth/otp/verify", "auth/verify-otp", "otp/verify", "users/otp/verify"]
+        payload = {"phone": phone, "otp": code}
+        for p in paths:
+            sc, resp = self._request("POST", p, json_body=payload)
+            if sc in (200, 201) and isinstance(resp, dict) and "access_token" in resp:
+                self.token = resp["access_token"]
+                return resp
+        return None
 
     def read_users_me(self) -> dict | None:
+        if DEMO_MODE:
+            return {"id": 1, "full_name": "Demo User", "phone": "9999999999"}
         for p in ("auth/me", "users/me", "me"):
             sc, body = self._request("GET", p)
             if sc == 200 and isinstance(body, dict):
                 return body
         return None
 
-    # ---------------- catalog ----------------
+    # -------- catalog (read) --------
     def get_categories(self) -> list[dict] | None:
+        if DEMO_MODE:
+            return [{"id": 1, "name": "Festivals"}]
         sc, body = self._request("GET", "categories")
-        if sc == 200 and isinstance(body, list):
-            return body
-        return [{"id": 1, "name": "Festivals"}]
+        return body if sc == 200 and isinstance(body, list) else None
 
     def get_records(self) -> list[dict] | None:
+        if DEMO_MODE:
+            return []
         sc, body = self._request("GET", "records")
-        if sc == 200 and isinstance(body, list):
-            return body
-        return None
+        return body if sc == 200 and isinstance(body, list) else None
 
-    # ---------------- contribute ----------------
+    # -------- contribute (metadata only on this UI) --------
     def create_record(self, *, title: str, description: str, category_id: int,
                       language: str, release_rights: str,
                       latitude: float | None = None, longitude: float | None = None) -> dict | None:
+        if DEMO_MODE:
+            return {"id": 12345, "ok": True}
         payload = {
             "title": title, "description": description, "category_id": category_id,
             "language": language, "release_rights": release_rights,
             "location": {"latitude": latitude, "longitude": longitude},
         }
         sc, body = self._request("POST", "records", json_body=payload)
-        if sc in (200, 201) and isinstance(body, dict):
-            return body
-        # Fallback so the UI stays usable even if POST is not enabled server-side
-        return {"id": int(time.time()) % 100000, "ok": True}
+        return body if sc in (200, 201) and isinstance(body, dict) else None

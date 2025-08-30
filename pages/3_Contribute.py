@@ -7,17 +7,20 @@ from utils.ui import set_blurred_bg, require_auth
 st.set_page_config(page_title="Contribute · Mana Sambharalu", layout="wide")
 set_blurred_bg()
 
-# Gate on LIVE unless you deliberately allow anon (we keep it strict here)
-if not require_auth() and not DEMO_MODE:
-    st.stop()
-
-st.title("➕ Contribute a Record")
-
 @st.cache_resource
 def get_client():
     return SwechaAPIClient()
+
 client = get_client()
 
+# LIVE must be authenticated
+if not DEMO_MODE and not require_auth():
+    st.stop()
+
+st.title("➕ Contribute a Record")
+st.markdown("Fill the details below to add a new festival record.")
+
+# Categories
 @st.cache_data(ttl=600)
 def _get_categories():
     cats = client.get_categories() or []
@@ -29,24 +32,18 @@ categories = _get_categories()
 cat_names = [c["name"] for c in categories]
 cat_id_by_name = {c["name"]: c["id"] for c in categories}
 
-st.markdown("Fill the details below to add a new festival record.")
-
 with st.form("contribute_form", enter_to_submit=False):
     col_a, col_b = st.columns([2, 1])
-
     with col_a:
         title = st.text_input("Title*", placeholder="e.g., Bathukamma Procession")
-        description = st.text_area(
-            "Description*", height=140,
-            placeholder="A short description of the festival moment, significance, etc."
-        )
+        description = st.text_area("Description*", height=140,
+                                   placeholder="A short description of the festival moment, significance, etc.")
         language = st.text_input("Language", value="telugu")
-
     with col_b:
         cat_name = st.selectbox("Category", options=cat_names, index=0)
         rights = st.selectbox(
             "Release rights",
-            options=["CC BY-SA 4.0","CC BY 4.0","Public Domain (CC0)","All rights reserved"],
+            options=["CC BY-SA 4.0", "CC BY 4.0", "Public Domain (CC0)", "All rights reserved"],
             index=0,
         )
         lat = st.number_input("Latitude (optional)", step=0.000001, format="%.6f")
@@ -55,7 +52,7 @@ with st.form("contribute_form", enter_to_submit=False):
     st.divider()
     uploads = st.file_uploader(
         "Photos / media (optional — media upload is demo-only for now on this UI)",
-        type=["jpg","jpeg","png","gif","webp","mp4","mov","wav","mp3"],
+        type=["jpg", "jpeg", "png", "gif", "webp", "mp4", "mov", "wav", "mp3"],
         accept_multiple_files=True,
         help="You can attach images or short clips. In DEMO mode we just preview them.",
     )
@@ -71,13 +68,10 @@ if submitted:
 
     with st.spinner("Creating record…"):
         rec = client.create_record(
-            title=title.strip(),
-            description=description.strip(),
+            title=title.strip(), description=description.strip(),
             category_id=cat_id_by_name.get(cat_name, 1),
             language=language.strip() or "telugu",
-            release_rights=rights,
-            latitude=(lat if lat else None),
-            longitude=(lon if lon else None),
+            release_rights=rights, latitude=(lat or None), longitude=(lon or None),
         )
 
     if not rec:
@@ -97,7 +91,7 @@ if submitted:
                     else:
                         st.caption(f"Attached: {f.name} ({f.type})")
         else:
-            st.warning("Server-side media upload API varies; this UI currently saves metadata only.")
+            st.warning("Media uploads vary across API deployments. This UI currently saves metadata only.")
 
     st.toast("Thanks for your contribution!", icon="🎉")
     st.balloons()
