@@ -1,20 +1,32 @@
-﻿import os, sys
+﻿# Home.py
+import os
+import sys
 import streamlit as st
-from utils.api_client import SwechaAPIClient, DEMO_MODE, API_BASE
+from utils.api_client import SwechaAPIClient, DEMO_MODE
 
+# Ensure local imports even if launched from elsewhere
 sys.path.append(os.path.dirname(__file__))
 
 st.set_page_config(page_title="మన సంబరాలు · Home", layout="wide")
 
+# ---------------------------------------------------------------------
+# Client
+# ---------------------------------------------------------------------
 @st.cache_resource
-def get_client():  # cache across reruns
+def get_client():
     return SwechaAPIClient()
+
 client = get_client()
 
+# ---------------------------------------------------------------------
+# Session state
+# ---------------------------------------------------------------------
 st.session_state.setdefault("authenticated", False)
 st.session_state.setdefault("access_token", None)
 st.session_state.setdefault("user", None)
+st.session_state.setdefault("otp_sent", False)
 
+# Rehydrate token if present
 if st.session_state.access_token and not st.session_state.authenticated:
     client.set_auth_token(st.session_state.access_token)
     me = client.read_users_me()
@@ -22,58 +34,119 @@ if st.session_state.access_token and not st.session_state.authenticated:
         st.session_state.user = me
         st.session_state.authenticated = True
 
-st.markdown("<h1 style='text-align:center;color:#d63384;'>మన సంబరాలు · Mana Sambharalu</h1>", unsafe_allow_html=True)
-st.caption(f"API: {API_BASE} · DEMO_MODE={'on' if DEMO_MODE else 'off'}")
+# ---------------------------------------------------------------------
+# Header
+# ---------------------------------------------------------------------
+st.markdown(
+    "<h1 style='text-align:center;color:#d63384;'>మన సంబరాలు · Mana Sambharalu</h1>",
+    unsafe_allow_html=True,
+)
+st.write(
+    "A community-driven treasury of Indian festivals — explore, contribute, and preserve our cultural memories."
+)
 
 col1, col2 = st.columns([2, 1])
 
+# ---------------------------------------------------------------------
+# Navigation (left)
+# ---------------------------------------------------------------------
 with col1:
-    st.page_link("pages/1_Explore.py", label="Explore Records →", use_container_width=True)
-    st.page_link("pages/2_Contribute.py", label="Contribute a Record →", use_container_width=True)
+    st.markdown("### Navigation")
 
+    if st.session_state.authenticated:
+        st.page_link("pages/1_Explore.py", label="🔎 Explore Records →", width="stretch")
+        st.page_link("pages/2_Contribute.py", label="➕ Contribute a Record →", width="stretch")
+    else:
+        st.info("Please log in to access **Explore** and **Contribute**.")
+        # Render disabled-looking buttons (no navigation until logged in)
+        st.button("🔒 Explore Records", disabled=True, help="Login required")
+        st.button("🔒 Contribute a Record", disabled=True, help="Login required")
+
+# ---------------------------------------------------------------------
+# Account (right)
+# ---------------------------------------------------------------------
 with col2:
     st.markdown("### Account")
-    if st.session_state.authenticated:
-        st.success(f"Logged in as **{st.session_state.user.get('full_name','User')}**")
-        if st.button("Logout", use_container_width=True):
-            st.session_state.update({"authenticated": False, "access_token": None, "user": None})
-            st.rerun()
-    else:
-        tab_login, tab_signup = st.tabs(["Login", "Sign up"])
-        with tab_login:
+    tab_login, tab_signup = st.tabs(["Login", "Sign up"])
+
+    # ---------------- Login ----------------
+    with tab_login:
+        if st.session_state.authenticated:
+            name = (
+                st.session_state.user.get("full_name")
+                or st.session_state.user.get("name")
+                or st.session_state.user.get("username")
+                or "User"
+            )
+            st.success(f"Logged in as **{name}**")
+            if st.button("Logout", type="secondary", width="stretch"):
+                st.session_state.update(
+                    {"authenticated": False, "access_token": None, "user": None}
+                )
+                st.rerun()
+        else:
             with st.form("login"):
-                ident = st.text_input("Phone / Username", placeholder="+91XXXXXXXXXX or username/email")
-                pwd = st.text_input("Password", type="password", placeholder=("demo123" if DEMO_MODE else "••••••••"))
-                ok = st.form_submit_button("Login", use_container_width=True)
+                uname = st.text_input("Phone / Username", placeholder="+91XXXXXXXXXX")
+                pwd = st.text_input(
+                    "Password", type="password", placeholder=("demo123" if DEMO_MODE else "••••••••")
+                )
+                ok = st.form_submit_button("Login", width="stretch")
+
             if ok:
-                res = client.login(ident, pwd)
-                if res and isinstance(res, dict) and ("access_token" in res or res.get("token") or res.get("access")):
-                    token = res.get("access_token") or res.get("token") or res.get("access")
-                    st.session_state.access_token = token
-                    client.set_auth_token(token)
-                    me = client.read_users_me()
-                    if me:
-                        st.session_state.user = me
-                        st.session_state.authenticated = True
-                        st.success("Login successful.")
+                try:
+                    res = client.login(uname.strip(), pwd)
+                    if res and "access_token" in res:
+                        # Save token & try fetching profile
+                        st.session_state["access_token"] = res["access_token"]
+                        client.set_auth_token(res["access_token"])
+                        me = client.read_users_me()
+
+                        # ✅ mark session as authenticated (this is what you asked to add)
+                        st.session_state["authenticated"] = True
+                        st.session_state["user"] = me or {"username": uname.strip()}
+
+                        st.success("Login successful. Use the links to navigate.")
                         st.rerun()
+                    else:
+                        st.error("Invalid credentials or server rejected the request.")
+                except RuntimeError as e:
+                    st.error(str(e))
+
+    # ---------------- Sign up (OTP flow) ----------------
+    with tab_signup:
+        if DEMO_MODE:
+            st.info("DEMO mode: use any phone. OTP is **123456**.")
+        phone = st.text_input("Phone (e.g., +91XXXXXXXXXX)", key="su_phone")
+
+        if st.button("Send OTP", key="su_send", width="content"):
+            resp = client.send_signup_otp(phone.strip())
+            if resp and isinstance(resp, dict):
+                st.session_state["otp_sent"] = True
+                st.success("OTP sent. Check your phone.")
+                # Some demo APIs echo the OTP for convenience
+                if DEMO_MODE and resp.get("demo_otp"):
+                    st.info(f"Demo OTP: **{resp['demo_otp']}**")
+            else:
+                st.error("Could not send OTP right now.")
+
+        if st.session_state.get("otp_sent"):
+            with st.form("verify_signup"):
+                otp = st.text_input("OTP")
+                name = st.text_input("Full name")
+                email = st.text_input("Email")
+                pwd1 = st.text_input("Create password", type="password")
+                done = st.form_submit_button("Verify & Create account", width="stretch")
+
+            if done:
+                created = client.verify_signup_otp(
+                    phone=phone.strip(),
+                    otp_code=otp.strip(),
+                    name=name.strip(),
+                    email=email.strip(),
+                    password=pwd1,
+                )
+                if created:
+                    st.success("Account created. Please log in from the Login tab.")
+                    st.session_state["otp_sent"] = False
                 else:
-                    details = ""
-                    if isinstance(res, dict) and res.get("_details"):
-                        d = res["_details"]
-                        details = f" (status {d.get('status')} at `/{d.get('path')}` using {d.get('payload_keys')}: {str(d.get('body'))[:180]})"
-                    elif isinstance(res, dict) and res.get("_error") == "not_found":
-                        details = " · Endpoints not found on server."
-                    st.error("Invalid credentials or server rejected the request." + details)
-                    with st.expander("What to try"):
-                        st.write("- Make sure you **have an account** on the Corpus API.")
-                        st.write("- Try **+91… format** for phone, or try your **email/username**.")
-                        st.write("- If you forgot the password, request a reset from an admin.")
-        with tab_signup:
-            st.info("If OTP signup is enabled for your number, use this to create an account; otherwise contact an admin.")
-            with st.form("signup"):
-                ph = st.text_input("Phone (e.g., +91XXXXXXXXXX)")
-                send = st.form_submit_button("Send OTP", use_container_width=True)
-            if send:
-                r = client.send_signup_otp(ph)
-                st.write(r if r else {"ok": False})
+                    st.error("OTP verification failed.")
