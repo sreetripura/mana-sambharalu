@@ -3,45 +3,36 @@ from __future__ import annotations
 import os
 import streamlit as st
 from utils.api_client import SwechaAPIClient, DEMO_MODE
-from utils.ui import set_blurred_bg, require_auth
+from utils.ui import set_blurred_bg
 
 st.set_page_config(page_title="Explore · Mana Sambharalu", layout="wide")
-set_blurred_bg()
+set_blurred_bg()  # blurred goddess background
 
-# Gate Explore when on LIVE API (allowed in DEMO)
-if not DEMO_MODE and not require_auth():
-    st.stop()
-
-HERE = os.path.dirname(os.path.abspath(__file__))
-ASSETS = os.path.normpath(os.path.join(HERE, "..", "assets"))
-IMG_DIR = os.path.join(ASSETS, "festivals")
-
-# uniform thumbnail sizing for all images on this page
 st.markdown(
     """
     <style>
+    /* Uniform thumbnails for ALL images on this page */
     [data-testid="stImage"] img {
-        width: 100% !important;
-        height: 240px !important;
-        object-fit: cover !important;
-        border-radius: 16px;
-        box-shadow: 0 8px 22px rgba(0,0,0,.20);
+        width: 100% !important;         /* fill the card width */
+        aspect-ratio: 16/9 !important;  /* <- change to 1/1 for square tiles */
+        height: auto !important;
+        object-fit: cover !important;   /* crop to fit, no distortion */
+        border-radius: 14px;
+        box-shadow: 0 8px 22px rgba(0,0,0,.25);
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-st.title("🔎 Explore Telangana Festivals")
+st.title("🔎 Explore Telangana\nFestivals")
 
-lang_tab = st.segmented_control(
-    "Language", options=["Both", "English", "తెలుగు"], default="తెలుగు"
-)
-
-@st.cache_resource
-def get_client():
-    return SwechaAPIClient()
-client = get_client()
+# ------------------------------------------------------------------
+# Static catalog (local images)
+# ------------------------------------------------------------------
+HERE = os.path.dirname(os.path.abspath(__file__))
+ASSETS = os.path.normpath(os.path.join(HERE, "..", "assets"))
+IMG_DIR = os.path.join(ASSETS, "festivals")
 
 CATALOG = [
     {
@@ -94,19 +85,16 @@ CATALOG = [
     },
 ]
 
-# 3-column grid
-cols = st.columns(3, gap="large")
+# ------------------------------------------------------------------
+# Responsive 2-column grid so widths match
+# ------------------------------------------------------------------
+cols = st.columns(2, gap="large")
+
 for i, item in enumerate(CATALOG):
-    with cols[i % 3]:
+    with cols[i % 2]:
         with st.container(border=True):
-            st.image(item["img"], caption=None, width="stretch")
-            if lang_tab == "Both":
-                st.markdown(f"**{item['en']}**  \n{item['te']}")
-                st.caption(item["desc_en"])
-                st.caption(item["desc_te"])
-            elif lang_tab == "English":
-                st.markdown(f"**{item['en']}**")
-                st.caption(item["desc_en"])
-            else:
-                st.markdown(f"**{item['te']}**")
-                st.caption(item["desc_te"])
+            st.image(item["img"], caption=None, width="stretch")  # width is uniform via column
+            # Names + short descriptions
+            st.markdown(f"## {item['en']}  \n### {item['te']}")
+            st.write(item["desc_en"])
+            st.write(item["desc_te"])
