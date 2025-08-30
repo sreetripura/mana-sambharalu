@@ -29,7 +29,7 @@ if st.session_state.access_token and not st.session_state.authenticated:
         st.session_state.authenticated = True
 
 st.markdown(
-    "<h1 style=\\"text-align:center;color:#ff8c32;\\">మన సంబరాలు · Mana Sambharalu</h1>",
+    "<h1 style='text-align:center;color:#FF8C32;'>మన సంబరాలు · Mana Sambharalu</h1>",
     unsafe_allow_html=True,
 )
 st.write("A community-driven treasury of Indian festivals — explore, contribute, and preserve our cultural memories.")
