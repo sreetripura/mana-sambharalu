@@ -1,60 +1,38 @@
-# pages/1_Explore.py
+# pages/2_Explore.py
 from __future__ import annotations
-import os, base64
+import os
 import streamlit as st
+from utils.ui import set_blurred_bg, require_auth
 from utils.api_client import SwechaAPIClient, DEMO_MODE
 
+# --- page config first, then bg ---
 st.set_page_config(page_title="Explore · Mana Sambharalu", layout="wide")
+set_blurred_bg()  # blurred goddess background
 
-# ---------- helpers ----------
-ASSETS = os.path.join(os.path.dirname(__file__), "..", "assets")
-ASSETS = os.path.abspath(ASSETS)
-
-def _data_uri(img_path: str) -> str | None:
-    try:
-        with open(img_path, "rb") as f:
-            b64 = base64.b64encode(f.read()).decode("ascii")
-        ext = "png" if img_path.lower().endswith(".png") else "jpeg"
-        return f"data:image/{ext};base64,{b64}"
-    except Exception:
-        return None
-
-def set_blurred_bg(png_path: str, blur_px: int = 18):
-    uri = _data_uri(png_path)
-    if not uri:
-        return
-    st.markdown(
-        f"""
-        <style>
-        .stApp::before {{
-            content: "";
-            position: fixed;
-            inset: 0;
-            background: url("{uri}") center/cover no-repeat fixed;
-            filter: blur({blur_px}px) brightness(0.55);
-            z-index: -1;
-        }}
-        /* uniform thumbnail sizing for ALL st.image on this page */
-        [data-testid="stImage"] img {{
-            width: 100% !important;
-            height: 260px !important;
-            object-fit: cover !important;
-            border-radius: 16px;
-            box-shadow: 0 8px 22px rgba(0,0,0,.25);
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-# ---------- auth-gate (Explore only when logged in on LIVE) ----------
-if not DEMO_MODE and not st.session_state.get("authenticated"):
-    st.title("🔒 Explore Telangana Festivals")
-    st.info("Please login from **Home → Account** to view the festival list.")
+# Gate Explore when on LIVE API (allowed in DEMO)
+if not DEMO_MODE and not require_auth():
     st.stop()
 
-# background
-set_blurred_bg(os.path.join(ASSETS, "bg", "explore_bg.png"))
+# ---------- paths ----------
+HERE = os.path.dirname(os.path.abspath(__file__))
+ASSETS = os.path.normpath(os.path.join(HERE, "..", "assets"))
+IMG_DIR = os.path.join(ASSETS, "festivals")
+
+# ---------- uniform thumbnail sizing ----------
+st.markdown(
+    """
+    <style>
+    [data-testid="stImage"] img {
+        width: 100% !important;
+        height: 260px !important;
+        object-fit: cover !important;
+        border-radius: 16px;
+        box-shadow: 0 8px 22px rgba(0,0,0,.25);
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 st.title("🔎 Explore Telangana\nFestivals")
 
@@ -62,16 +40,14 @@ lang_tab = st.segmented_control(
     "Language", options=["Both", "English", "తెలుగు"], default="తెలుగు"
 )
 
-# Client (cached)
+# ---------- (cached) client, if you later fetch from API ----------
 @st.cache_resource
 def get_client():
     return SwechaAPIClient()
 
 client = get_client()
 
-# ---------- static catalog (local images) ----------
-IMG_DIR = os.path.join(ASSETS, "festivals")
-
+# ---------- local catalog ----------
 CATALOG = [
     {
         "slug": "bathukamma",
@@ -125,13 +101,8 @@ CATALOG = [
 
 # ---------- list UI ----------
 for item in CATALOG:
-    img_uri = _data_uri(item["img"])
     with st.container(border=True):
-        if img_uri:
-            st.image(item["img"], caption=None, width="stretch")
-        else:
-            st.caption("📷 Image not found")
-
+        st.image(item["img"], caption=None, width="stretch")
         if lang_tab == "Both":
             st.markdown(f"## {item['en']}  \n### {item['te']}")
             st.write(item["desc_en"])

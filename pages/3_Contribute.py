@@ -1,43 +1,19 @@
-# pages/2_Contribute.py
-import os, base64
+# pages/3_Contribute.py
 import streamlit as st
+from utils.ui import set_blurred_bg, require_auth
 from utils.api_client import SwechaAPIClient, DEMO_MODE
 
+st.set_page_config(page_title="Explore · Mana Sambharalu", layout="wide")
+set_blurred_bg()
+# …then your auth gate / page body…
+
+# Config first, then any st.* calls
 st.set_page_config(page_title="Contribute · Mana Sambharalu", layout="wide")
+set_blurred_bg()  # blurred goddess background
 
-ASSETS = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "assets"))
-
-def _bg_uri():
-    path = os.path.join(ASSETS, "bg", "explore_bg.png")
-    try:
-        with open(path, "rb") as f:
-            b64 = base64.b64encode(f.read()).decode("ascii")
-        return f"data:image/png;base64,{b64}"
-    except Exception:
-        return None
-
-uri = _bg_uri()
-if uri:
-    st.markdown(
-        f"""
-        <style>
-        .stApp::before {{
-            content: "";
-            position: fixed; inset: 0;
-            background: url("{uri}") center/cover no-repeat fixed;
-            filter: blur(18px) brightness(.55);
-            z-index: -1;
-        }}
-        [data-testid="stImage"] img {{
-            width: 100% !important;
-            height: 260px !important;
-            object-fit: cover !important;
-            border-radius: 16px;
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+# Gate when using the live API (skip in DEMO)
+if not DEMO_MODE and not require_auth():
+    st.stop()
 
 st.title("➕ Contribute a Record")
 
@@ -47,14 +23,7 @@ def get_client():
 
 client = get_client()
 
-# --- Auth gate (LIVE only) ---
-if not DEMO_MODE and not st.session_state.get("authenticated"):
-    st.warning(
-        "You’re using the **live API**. Please log in from **Home → Account** to submit records."
-    )
-    st.stop()
-
-# ---- your original form (unchanged) ----
+# ---- categories ----
 @st.cache_data(ttl=600)
 def _get_categories():
     cats = client.get_categories() or []
@@ -83,12 +52,7 @@ with st.form("contribute_form", enter_to_submit=False):
         cat_name = st.selectbox("Category", options=cat_names, index=0)
         rights = st.selectbox(
             "Release rights",
-            options=[
-                "CC BY-SA 4.0",
-                "CC BY 4.0",
-                "Public Domain (CC0)",
-                "All rights reserved",
-            ],
+            options=["CC BY-SA 4.0", "CC BY 4.0", "Public Domain (CC0)", "All rights reserved"],
             index=0,
         )
         lat = st.number_input("Latitude (optional)", step=0.000001, format="%.6f")
@@ -102,7 +66,8 @@ with st.form("contribute_form", enter_to_submit=False):
         help="You can attach images or short clips. In DEMO mode we just preview them.",
     )
 
-    submitted = st.form_submit_button("Submit record", use_container_width=False)
+    # Streamlit deprecation: use width instead of use_container_width
+    submitted = st.form_submit_button("Submit record", width="stretch")
 
 if submitted:
     problems = []
@@ -110,6 +75,7 @@ if submitted:
         problems.append("Title is required.")
     if not description.strip():
         problems.append("Description is required.")
+
     if problems:
         st.error(" ".join(problems))
         st.stop()

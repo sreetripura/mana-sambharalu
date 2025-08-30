@@ -1,13 +1,14 @@
 ﻿# Home.py
-import os
-import sys
+import os, sys
 import streamlit as st
 from utils.api_client import SwechaAPIClient, DEMO_MODE
+from utils.ui import set_blurred_bg
+
+st.set_page_config(page_title="మన సంబరాలు · Home", layout="wide")
+set_blurred_bg()  # after page_config
 
 # Ensure local imports even if launched from elsewhere
 sys.path.append(os.path.dirname(__file__))
-
-st.set_page_config(page_title="మన సంబరాలు · Home", layout="wide")
 
 # ---------------------------------------------------------------------
 # Client
@@ -54,11 +55,11 @@ with col1:
     st.markdown("### Navigation")
 
     if st.session_state.authenticated:
-        st.page_link("pages/1_Explore.py", label="🔎 Explore Records →", width="stretch")
-        st.page_link("pages/2_Contribute.py", label="➕ Contribute a Record →", width="stretch")
+        # NOTE: we renamed the pages to 2_Explore.py and 3_Contribute.py
+        st.page_link("pages/2_Explore.py", label="🔎 Explore Records →", width="stretch")
+        st.page_link("pages/3_Contribute.py", label="➕ Contribute a Record →", width="stretch")
     else:
         st.info("Please log in to access **Explore** and **Contribute**.")
-        # Render disabled-looking buttons (no navigation until logged in)
         st.button("🔒 Explore Records", disabled=True, help="Login required")
         st.button("🔒 Contribute a Record", disabled=True, help="Login required")
 
@@ -96,12 +97,11 @@ with col2:
                 try:
                     res = client.login(uname.strip(), pwd)
                     if res and "access_token" in res:
-                        # Save token & try fetching profile
                         st.session_state["access_token"] = res["access_token"]
                         client.set_auth_token(res["access_token"])
                         me = client.read_users_me()
 
-                        # ✅ mark session as authenticated (this is what you asked to add)
+                        # ✅ mark session authenticated (the bit you asked about)
                         st.session_state["authenticated"] = True
                         st.session_state["user"] = me or {"username": uname.strip()}
 
@@ -123,7 +123,6 @@ with col2:
             if resp and isinstance(resp, dict):
                 st.session_state["otp_sent"] = True
                 st.success("OTP sent. Check your phone.")
-                # Some demo APIs echo the OTP for convenience
                 if DEMO_MODE and resp.get("demo_otp"):
                     st.info(f"Demo OTP: **{resp['demo_otp']}**")
             else:
