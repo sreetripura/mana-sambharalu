@@ -1,29 +1,37 @@
-﻿from __future__ import annotations
+﻿# utils/ui.py
+from __future__ import annotations
+import os
 import streamlit as st
 
-_BG_DEFAULT = "assets/bg/goddess_bg.png"
+_BG_DEFAULT = "assets/bg/goddess_bg.png"  # put your image here
 
 def set_blurred_bg(image_path: str = _BG_DEFAULT, *, blur_px: int = 18, opacity: float = 0.28) -> None:
+    exists = os.path.exists(image_path)
+    bg_css = (
+        f"background: url('{image_path}') center/cover no-repeat fixed;"
+        if exists else
+        "background: linear-gradient(135deg,#ffffff,#f5f5f5) fixed;"
+    )
     st.markdown(
         f"""
         <style>
         .stApp::before {{
             content: "";
-            position: fixed; inset: 0;
-            background: url('{image_path}') center/cover no-repeat fixed;
+            position: fixed;
+            inset: 0;
+            {bg_css}
             filter: blur({blur_px}px);
             opacity: {opacity};
             z-index: -1;
         }}
-        .stApp [data-testid="stHeader"] {{ background: transparent; }}
+        /* orange/black/gray accents */
+        h1, h2, h3 {{ color: #ff8c32 !important; }}
+        .stButton>button {{ background:#ff8c32; color:#fff; border:0; }}
+        .stButton>button:hover {{ filter: brightness(0.95); }}
         </style>
         """,
         unsafe_allow_html=True,
     )
-
-def center_wrapper(start_cols: int = 1, mid_cols: int = 2, end_cols: int = 1):
-    """Returns (left, mid, right) columns to center content in 'mid'."""
-    return st.columns([start_cols, mid_cols, end_cols])
 
 def require_auth() -> bool:
     if not st.session_state.get("authenticated"):
