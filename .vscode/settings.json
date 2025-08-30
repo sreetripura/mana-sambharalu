@@ -1,0 +1,8 @@
+﻿{
+  "editor.tabSize": 4,
+  "editor.formatOnSave": true,
+  "files.eol": "\n",
+  "python.testing.pytestEnabled": true,
+  "editor.rulers": [100],
+  "[python]": { "editor.defaultFormatter": "ms-python.black-formatter" }
+}

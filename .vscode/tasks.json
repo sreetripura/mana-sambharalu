@@ -1,0 +1,7 @@
+﻿{
+  "version": "2.0.0",
+  "tasks": [
+    { "label": "Run Streamlit", "type": "shell", "command": "streamlit run Home.py" },
+    { "label": "Ruff: Lint", "type": "shell", "command": "ruff check ." }
+  ]
+}
