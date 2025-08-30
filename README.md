@@ -1,62 +1,43 @@
-# మన సంభరాలు · Mana Sambharalu
+# మన సంబరాలు · Mana Sambharalu
 
-A community-driven Streamlit app to **explore** and **contribute** Indian festival records using the **Swecha Corpus API**.
+A community-driven treasury of Indian festivals — explore, contribute, and preserve our cultural memories.
 
-<p align="center">
-  <img alt="Home" src="assets/Screenshot%202025-08-28%20125720.png" width="800"><br/>
-  <em>Home</em>
-</p>
+## Live App
 
-## ✨ Features
-- 🔎 Explore corpus records (title, language, location, images)
-- ➕ Contribute new records (metadata + optional media)
-- 🔐 Login (demo mode supported)
-- 🌗 Clean, responsive UI (Streamlit)
+- Streamlit: https://mana-sambharalu.streamlit.app
+
+## Screenshots
 
 <p align="center">
-  <img alt="Explore" src="assets/Screenshot%202025-08-28%20125608.png" width="800"><br/>
-  <em>Explore</em>
+  <img src="assets/home.png" alt="Home page" width="900">
+</p>
+
+<p float="left">
+  <img src="assets/explore1.png" alt="Explore - grid section 1" width="49%">
+  <img src="assets/explore2.png" alt="Explore - grid section 2" width="49%">
 </p>
 
 <p align="center">
-  <img alt="Contribute" src="assets/Screenshot%202025-08-28%20125652.png" width="800"><br/>
-  <em>Contribute</em>
+  <img src="assets/contribute.png" alt="Contribute form" width="900">
 </p>
 
----
+## Team
 
-## 🧭 Project Layout
-mana-sambharalu/
-├─ Home.py # Landing + login
-├─ pages/
-│ ├─ 1_Explore.py # Browse/search records
-│ └─ 2_Contribute.py # Create records + upload chunks
-├─ utils/
-│ └─ api_client.py # Swecha Corpus API wrapper
-├─ config/
-│ └─ settings.py # DEMO_MODE, API_BASE
-├─ assets/ # Images used in README/UI
-├─ requirements.txt
-└─ pyproject.toml
+- [Vaishnavi Bussa](https://code.swecha.org/vaishnavibussa)
+- [Gayathri Kodipaka](https://code.swecha.org/Gayathrikodipaka)
+- [Deekshitha M](https://code.swecha.org/DeekshithaM)
+- [Sudhamsh](https://code.swecha.org/Sudhamsh22)
+- Maintainer: [Sree Tripura](https://code.swecha.org/SreeTripura)
 
+## Tech
 
+- Streamlit, Python 3.10+
+- Styling: custom CSS (orange/black/white/grey theme)
+- Packaging: `pyproject.toml` (uv/poetry compatible)
 
-## 🔧 Local Setup
+## Development
+
 ```bash
-# clone
-git clone https://code.swecha.org/SreeTripura/mana-sambharalu.git
-cd mana-sambharalu
-
-# create & activate venv (Windows PowerShell)
-py -3 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-
-# install deps
-pip install -r requirements.txt
-
-# run the app
-streamlit run Home.py
-
-
-
-
+uv sync
+uv run streamlit run Home.py
+```
