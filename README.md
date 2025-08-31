@@ -1,21 +1,19 @@
-﻿# à°®à°¨ à°¸à°‚à°¬à°°à°¾à°²à± Â· Mana Sambharalu ðŸŽ‰
+# మన సంబరాలు · Mana Sambharalu 🎉
 
-A community-driven treasury of Indian festivals â€” **explore**, **contribute**, and **preserve** our cultural memories.  
-Built with Streamlit and a warm **orange / black / white / grey** theme ðŸ§¡ðŸ–¤ðŸ¤
+A community-driven treasury of Indian festivals — **explore**, **contribute**, and **preserve** our cultural memories.  
+Built with Streamlit and a warm **orange / black / white / grey** theme 🧡🖤🤍
 
 ---
 
-## ðŸ”— Live App
+## 🔗 Live App
 
 - **Streamlit:** https://mana-sambharalu.streamlit.app
-
----
 
 > In Demo Mode the app does not call a real API. Logging in simply unlocks the UI.
 
 ---
 
-## ðŸ“¸ Screenshots
+## 📸 Screenshots
 
 > If an image does not render on GitHub/GitLab, make sure the file exists and is **committed** at the same path.
 
@@ -32,21 +30,21 @@ Built with Streamlit and a warm **orange / black / white / grey** theme ðŸ§¡
   <img src="assets/screenshots/contribute.png" alt="Contribute form" width="900">
 </p>
 
-_Screenshot files live in **assets/screenshots/**. Replace them with your own images if you like (keep the same file names or update the paths above)._
+_Screenshot files live in **assets/screenshots/**._
 
 ---
 
-## âœ¨ Features
+## ✨ Features
 
-- ðŸ” **Login / Sign-up (Demo)** â€“ simple session state; â€œdemo123â€ unlocks Explore & Contribute.
-- ðŸ”Ž **Explore** â€“ bilingual (English/à°¤à±†à°²à±à°—à±) festival cards with **uniform image sizes**.
-- âž• **Contribute** â€“ add records (title, language, rights, geotags, demo media preview).
-- ðŸ§¡ **Theme** â€“ orange headline accents, dark surface, soft card shadows, rounded corners.
-- ðŸŒ **Background** â€“ blurred Devi image applied globally via a small CSS helper.
+- 🔐 **Login / Sign-up (Demo)** – simple session state; “demo123” unlocks Explore & Contribute.
+- 🔎 **Explore** – bilingual (English/తెలుగు) festival cards with **uniform image sizes**.
+- ➕ **Contribute** – add records (title, language, rights, geotags, demo media preview).
+- 🧡 **Theme** – orange headline accents, dark surface, soft card shadows, rounded corners.
+- 🌁 **Background** – blurred Devi image applied globally via a small CSS helper.
 
 ---
 
-## ðŸ§± Tech Stack
+## 🧱 Tech Stack
 
 - **Python 3.10+**, **Streamlit**
 - Light CSS via `st.markdown` for background & cards
@@ -54,25 +52,21 @@ _Screenshot files live in **assets/screenshots/**. Replace them with your own im
 
 ---
 
-## ðŸ“‚ Project Structure (partial)
+## 📂 Project Structure (partial)
 
 assets/
-bg/
-goddess_bg.png
-festivals/
+screenshots/
 home.png
 explore1.png
 explore2.png
 contribute.png
+bg/
 config/
-settings.py
 pages/
 1_Dashboard.py
 2_Explore.py
 3_Contribute.py
 utils/
-api_client.py
-ui.py
 Home.py
 pyproject.toml
 
@@ -81,16 +75,13 @@ Copy code
 
 ---
 
-## â–¶ï¸ Run Locally
+## ▶️ Run Locally
 
 ### Using uv
 
 ```bash
 uv sync
 uv run streamlit run Home.py
-Using pip (virtual env)
-bash
-Copy code
 python -m venv .venv
 # Windows
 . .venv/Scripts/activate
@@ -99,17 +90,23 @@ python -m venv .venv
 
 pip install -r <(uv pip compile pyproject.toml)  # or just install packages from pyproject with pip/uv
 streamlit run Home.py
-ðŸ‘¥ Team
 
-Sree Tripura â€” https://code.swecha.org/SreeTripura
+👥 Team
 
-Vaishnavi Bussa â€” https://code.swecha.org/vaishnavibussa
+Sree Tripura  https://code.swecha.org/SreeTripura
 
-Gayathri Kodipaka â€” https://code.swecha.org/Gayathrikodipaka
+Vaishnavi Bussa  https://code.swecha.org/vaishnavibussa
 
-Deekshitha M â€” https://code.swecha.org/DeekshithaM
+Gayathri Kodipaka  https://code.swecha.org/Gayathrikodipaka
 
-Sudhamsh â€” https://code.swecha.org/Sudhamsh22
+Deekshitha M  https://code.swecha.org/DeekshithaM
+
+Sudhamsh  https://code.swecha.org/Sudhamsh22
+
+
+
+
+
 
 
 
